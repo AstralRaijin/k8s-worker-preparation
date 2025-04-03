@@ -23,15 +23,14 @@ if [ -z "$NEW_HOSTNAME" ]; then
     display_usage
 fi
 
-# Set hostname
+# Set hostname using hostnamectl
 echo "Setting hostname to $NEW_HOSTNAME..."
 sudo hostnamectl set-hostname $NEW_HOSTNAME
 
-# Configure /etc/hosts properly
-echo "Configuring /etc/hosts..."
-sudo sed -i '/127.0.1.1/d' /etc/hosts  # Remove existing entries if any
-echo "127.0.0.1 localhost" | sudo tee -a /etc/hosts
-echo "127.0.1.1 $NEW_HOSTNAME" | sudo tee -a /etc/hosts
+# Remove any existing entries for 127.0.0.1 and 127.0.1.1 in /etc/hosts
+echo "Cleaning up /etc/hosts..."
+sudo sed -i '/^127\.0\.0\.1[[:space:]]/d' /etc/hosts
+sudo sed -i '/^127\.0\.1\.1[[:space:]]/d' /etc/hosts
 
 # Update system packages
 echo "Updating system packages..."
