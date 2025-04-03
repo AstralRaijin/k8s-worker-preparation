@@ -95,17 +95,16 @@ sudo apt-mark hold kubelet kubeadm kubectl
 echo "Enabling kubelet service..."
 sudo systemctl enable kubelet
 
-# Open required ports in firewall for Kubernetes communication and networking plugins like Calico or Flannel
+# Open required ports in firewall for Kubernetes communication and networking plugins like Calico or Flannel (if applicable)
 echo "Configuring firewall rules..."
 sudo ufw allow 6443/tcp  # Kubernetes API server port on control plane node(s)
 sudo ufw allow 10250/tcp  # Kubelet API port on worker nodes
 sudo ufw allow 10255/tcp  # Read-only Kubelet API port (optional)
-sudo ufw allow 179/tcp   # Calico BGP port (if using Calico CNI plugin)
-sudo ufw allow 4789/udp  # VXLAN port (if using Flannel or Calico)
 
-# Install a CNI plugin (Calico in this example)
-echo "Installing Calico CNI plugin for networking..."
-kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+# Ensure swap is disabled permanently (required by Kubernetes)
+if grep -q 'swap' /proc/swaps; then 
+    echo "Warning: Swap is still enabled! Please ensure it is disabled permanently."
+fi
 
 echo "========================================================"
 echo "Worker node preparation complete!"
