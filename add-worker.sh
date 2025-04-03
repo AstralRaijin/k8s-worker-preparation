@@ -26,9 +26,14 @@ fi
 # Set hostname
 echo "Setting hostname to $NEW_HOSTNAME..."
 sudo hostnamectl set-hostname $NEW_HOSTNAME
-echo "127.0.0.1 $NEW_HOSTNAME" | sudo tee -a /etc/hosts
 
-# Update system
+# Configure /etc/hosts properly
+echo "Configuring /etc/hosts..."
+sudo sed -i '/127.0.1.1/d' /etc/hosts  # Remove existing entries if any
+echo "127.0.0.1 localhost" | sudo tee -a /etc/hosts
+echo "127.0.1.1 $NEW_HOSTNAME" | sudo tee -a /etc/hosts
+
+# Update system packages
 echo "Updating system packages..."
 sudo apt update && sudo apt upgrade -y
 
@@ -36,7 +41,7 @@ sudo apt update && sudo apt upgrade -y
 echo "Installing dependencies..."
 sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
 
-# Disable swap
+# Disable swap (required for Kubernetes)
 echo "Disabling swap..."
 sudo swapoff -a
 sudo sed -i '/swap/s/^/#/' /etc/fstab
@@ -51,7 +56,7 @@ EOF
 sudo modprobe overlay
 sudo modprobe br_netfilter
 
-# Set up required sysctl parameters
+# Set up required sysctl parameters for Kubernetes networking
 echo "Setting up sysctl parameters..."
 cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
 net.bridge.bridge-nf-call-iptables = 1
@@ -68,7 +73,7 @@ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubun
 sudo apt update
 sudo apt install -y containerd.io
 
-# Configure containerd
+# Configure containerd to use systemd as the cgroup driver (required by Kubernetes)
 echo "Configuring containerd..."
 sudo mkdir -p /etc/containerd
 containerd config default | sudo tee /etc/containerd/config.toml > /dev/null
@@ -76,20 +81,31 @@ sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/conf
 sudo systemctl restart containerd
 sudo systemctl enable containerd
 
-# Add Kubernetes apt repository
+# Add Kubernetes apt repository and install components (kubelet, kubeadm, kubectl)
 echo "Adding Kubernetes repository..."
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo tee /etc/apt/trusted.gpg.d/kubernetes.asc
-echo "deb https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo tee /etc/apt/trusted.gpg.d/kubernetes.asc > /dev/null
+echo "deb https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list > /dev/null
 
-# Install Kubernetes components
 echo "Installing Kubernetes components..."
 sudo apt update
 sudo apt install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
 
-# Enable kubelet service
+# Enable kubelet service to start automatically on boot
 echo "Enabling kubelet service..."
 sudo systemctl enable kubelet
+
+# Open required ports in firewall for Kubernetes communication and networking plugins like Calico or Flannel
+echo "Configuring firewall rules..."
+sudo ufw allow 6443/tcp  # Kubernetes API server port on control plane node(s)
+sudo ufw allow 10250/tcp  # Kubelet API port on worker nodes
+sudo ufw allow 10255/tcp  # Read-only Kubelet API port (optional)
+sudo ufw allow 179/tcp   # Calico BGP port (if using Calico CNI plugin)
+sudo ufw allow 4789/udp  # VXLAN port (if using Flannel or Calico)
+
+# Install a CNI plugin (Calico in this example)
+echo "Installing Calico CNI plugin for networking..."
+kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 echo "========================================================"
 echo "Worker node preparation complete!"
