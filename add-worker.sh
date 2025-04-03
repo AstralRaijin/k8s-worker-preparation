@@ -53,4 +53,10 @@ sudo sysctl --system
 # 8. Clean previous installations (if any)
 sudo kubeadm reset -f
 
-echo "Setup complete. Use kubeadm join command to add to cluster."
+echo "========================================================"
+echo "Worker node preparation complete!"
+echo "You can now join this node to your Kubernetes cluster by running:"
+echo "sudo kubeadm join <control-plane-host>:<control-plane-port> --token <token> --discovery-token-ca-cert-hash sha256:<hash>"
+echo "Get this command from your control plane node by running:"
+echo "sudo kubeadm token create --print-join-command"
+echo "========================================================"
