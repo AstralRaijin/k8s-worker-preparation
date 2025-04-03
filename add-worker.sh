@@ -9,8 +9,9 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-# 1. Set hostname
+# 1. Set hostname using hostnamectl
 sudo hostnamectl set-hostname "$1"
+echo "Hostname has been set to: $1"
 
 # 2. Update and install dependencies
 sudo apt update
@@ -40,7 +41,7 @@ sudo systemctl enable containerd
 echo "Containerd status:"
 sudo systemctl status containerd
 
-# 7. Kernel modules and sysctl
+# 7. Kernel modules and sysctl configuration
 sudo modprobe br_netfilter
 sudo modprobe overlay
 cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
@@ -49,13 +50,7 @@ net.ipv4.ip_forward = 1
 EOF
 sudo sysctl --system
 
-# 8. Clean previous installations
+# 8. Clean previous installations (if any)
 sudo kubeadm reset -f
 
-echo "========================================================"
-echo "Worker node preparation complete!"
-echo "You can now join this node to your Kubernetes cluster by running:"
-echo "sudo kubeadm join <control-plane-host>:<control-plane-port> --token <token> --discovery-token-ca-cert-hash sha256:<hash>"
-echo "Get this command from your control plane node by running:"
-echo "sudo kubeadm token create --print-join-command"
-echo "========================================================"
+echo "Setup complete. Use kubeadm join command to add to cluster."
